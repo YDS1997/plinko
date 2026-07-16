@@ -155,6 +155,9 @@ button.gale{width:100%;padding:14px 8px;border-color:var(--gale);color:var(--gal
 <script>
 (function(){
 const W=660,H=1140,R=13,FIN=1110,MAXV=12,WINDLEN=180,SUB=4,KICKV=16,GL=296,GR=364,BEHIND=15;
+const BOGY=800, BOGWIN=330, BOGR=22;
+const BOGH=[[190,224],[268,308],[352,392],[436,470]];
+const BOGHOLES=[246,330,414];
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 cv.width=W*2;cv.height=H*2;ctx.scale(2,2);
 const $=i=>document.getElementById(i);
@@ -186,6 +189,19 @@ function addTier(py,kickV,cd){
     {x:446,y:py,l:100,rest:Math.PI-0.40,fire:Math.PI+0.55,a:Math.PI-0.40,w:0,t:0,cd:0,cdm:cd,side:'R'}
   );
 }
+function addBog(){
+  const fy=BOGY,r=330,ry=fy-320;
+  segs.push(mkSeg(0,fy-164,190,fy-56,r,ry),mkSeg(W,fy-164,470,fy-56,r,ry));
+  segs.push(mkSeg(190,fy-56,190,fy,r,ry),mkSeg(470,fy-56,470,fy,r,ry));
+  for(const h of BOGH)segs.push(mkSeg(h[0],fy,h[1],fy,r,ry));
+  for(const cx of [BOGHOLES[0],BOGHOLES[2]]){
+    segs.push(mkSeg(cx-BOGR,fy,cx-BOGR,fy+56,cx,fy+28));
+    segs.push(mkSeg(cx+BOGR,fy,cx+BOGR,fy+56,cx,fy+28));
+    segs.push(mkSeg(cx-BOGR,fy+56,cx+BOGR,fy+56,cx,fy+28));
+    kicks.push({seg:segs.length-1,side:'U',v:-12,t:0});
+  }
+  pegs.push({x:288,y:fy-42},{x:372,y:fy-42});
+}
 function build(){
   pegs=[];
   const row=(y,alt)=>{
@@ -202,7 +218,7 @@ function build(){
   segs=[];kicks=[];flips=[];
   segs.push(mkSeg(0,0,0,H,330,570),mkSeg(W,0,W,H,330,570));
   addTier(420,-11,58);
-  addTier(730,-11,58);
+  addBog();
   addTier(1002,-15,26);
 }
 function reset(){
@@ -271,7 +287,7 @@ function step(){
       if(b.done)continue;
       const c=segp(b.x,b.y,g[0],g[1],g[2],g[3]);
       if(Math.hypot(b.x-c.x,b.y-c.y)<R+9){
-        b.vy=k.v;b.vx=k.side==='L'?5.5:-5.5;b.kick=50;k.t=9;break;
+        b.vy=k.v;b.vx=k.side==='L'?5.5:k.side==='R'?-5.5:(rng()-.5)*4.4;b.kick=50;k.t=9;break;
       }
     }
   }
@@ -419,8 +435,25 @@ function draw(){
   ctx.beginPath();ctx.moveTo(GL,FIN);ctx.lineTo(GR,FIN);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#8A97A6';ctx.font='500 12px Oswald,sans-serif';ctx.textAlign='center';
   ctx.fillText('OUT',330,FIN+20);
+  for(const x of BOGHOLES){
+    const win=x===BOGWIN;
+    ctx.fillStyle=win?'#C79A45':'#4C6076';
+    ctx.font='500 10px Oswald,sans-serif';ctx.textAlign='center';
+    if(win){
+      ctx.fillText('WIN',x,BOGY+22);
+      ctx.strokeStyle='#C79A45';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x-BOGR,BOGY+30);ctx.lineTo(x+BOGR,BOGY+30);ctx.stroke();
+    }else{
+      ctx.fillText('\u21BA',x,BOGY+76);
+      ctx.strokeStyle='#4C6076';ctx.lineWidth=2.5;
+      for(let i=0;i<2;i++){
+        const oy=BOGY+48-i*11;
+        ctx.beginPath();ctx.moveTo(x-9,oy+6);ctx.lineTo(x,oy-2);ctx.lineTo(x+9,oy+6);ctx.stroke();
+      }
+    }
+  }
   ctx.font='500 11px Oswald,sans-serif';ctx.textAlign='left';
-  ctx.fillText('TIER 1',12,352);ctx.fillText('TIER 2',12,662);ctx.fillText('TIER 3',12,934);
+  ctx.fillText('TIER 1',12,352);ctx.fillText('\u6cbc',12,BOGY-150);ctx.fillText('TIER 3',12,934);
   if(Math.abs(lagv)>150){
     ctx.fillStyle='#8A97A6';ctx.font='500 11px Oswald,sans-serif';ctx.textAlign='right';
     ctx.fillText('SYNC \u2026',W-14,40);
@@ -686,7 +719,7 @@ $('bSpd').addEventListener('click',e=>{spd=spd===1?2:spd===2?4:1;e.currentTarget
 $('bAuto').addEventListener('click',e=>{auto=auto?0:1;e.currentTarget.textContent=auto?'開':'關'});
 $('bW').addEventListener('click',blow);
 $('bGo').addEventListener('click',go);
-$('note').textContent='三層關卡，每層都有自動守門的擋板和兩側彈射器。名次只認最底層中央 OUT 口：球心必須通過那道虛線才算。有球逼近時全場降速 0.2 倍。除房主外，每人一局可起風一次，吹 3 秒。';
+$('note').textContent='第二層是「沼」：漏斗收口後只有三個等寬的洞，中央 WIN 才能繼續往下，左右兩個會被彈射器轟回漏斗上方重掉一次，沒有球會被淘汰。名次只認最底層中央 OUT 口。有球逼近時全場降速 0.2 倍。除房主外，每人一局可起風一次，吹 3 秒。';
 N=80;K=3;reset();
 
 async function boot(){
